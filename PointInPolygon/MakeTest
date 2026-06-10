@@ -1,0 +1,28 @@
+#
+#  Make file to maintain Strip Chart Utilities Test Programs
+#
+
+#
+# Define default make constants
+#
+
+CC         = gcc
+RANLIB     = 'ar ts'
+BIN_DIR    = ~/tamps/bin
+CFLAGS     = '-g -DSYSV -DSVR4_0'
+OTHER_LIBS =
+
+all:  Test1
+#
+#  Make the program to test Point In Polygon
+#
+
+Test1: Test1.o libutil.a
+	$(CC) Test1.o libutil.a -lm -o Test1
+	@echo "Test1 is up to date"
+
+#
+#  Establish dependencies for the test files
+#
+
+Test1:

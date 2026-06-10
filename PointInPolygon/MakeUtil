@@ -1,0 +1,31 @@
+#
+#  Make file to maintain Strip Chart Utilities
+#
+
+#
+# Define default make constants
+#
+
+CC         = gcc
+RANLIB     = 'ar ts'
+BIN_DIR    = ~/tamps/bin
+CFLAGS     = '-g -DSYSV -DSVR4_0'
+OTHER_LIBS =
+
+
+SERVICES = libutil.a(PtInPoly.o)
+
+#
+#  Make the util library
+#
+
+libutil.a: $(SERVICES)
+	$(RANLIB) libutil.a
+	@echo "The util library is up to date."
+
+#
+#  Establish dependencies for the files that comprise
+#  The util library.
+#
+
+libutil.a(PtInPoly.a):
