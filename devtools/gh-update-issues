@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# update-issues.sh
+# gh-update-issues
 #
 # Applies the regenerated issue markdown files to existing GitHub issues,
 # one at a time, via `gh issue edit`. Overwrites title + body in place —
