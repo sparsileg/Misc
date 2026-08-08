@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+
+# ghcopy - Copy GitHub issues to the clipboard as Markdown
+#
+# Usage:
+#   ghcopy 123
+#   ghcopy 123 127 142
+#   ghcopy 123,127,142
+#   ghcopy '#123' '#127' '#142'
+#
+# Requirements:
+#   - GitHub CLI (gh)
+#   - jq
+#   - xclip
+#
+# The GitHub CLI must already be authenticated:
+#   gh auth status
+#
+# Copyright (c) 2026
+# SPDX-License-Identifier: MIT
+
+set -o pipefail
+
+PROGRAM_NAME="$(basename "$0")"
+
+usage() {
+    cat <<EOF
+Usage:
+  $PROGRAM_NAME [OPTIONS] ISSUE [ISSUE ...]
+
+Copy one or more GitHub issues to the system clipboard as Markdown.
+
+Arguments:
+  ISSUE                 GitHub issue number. Multiple issues may be specified.
+
+Accepted formats:
+  123
+  123 127 142
+  123,127,142
+  123 127,142
+  #123 #127 #142
+
+Options:
+  -h, --help            Show this help message and exit.
+
+Examples:
+  $PROGRAM_NAME 123
+  $PROGRAM_NAME 123 127 142
+  $PROGRAM_NAME 123,127,142
+  $PROGRAM_NAME '#123' '#127' '#142'
+
+The copied Markdown includes:
+  - Issue number
+  - Issue title
+  - Issue state
+  - Labels
+  - Issue body
+  - GitHub issue URL
+
+Requirements:
+  gh                      GitHub CLI
+  jq                      JSON processor
+  xclip                   X11 clipboard utility
+
+The GitHub CLI must be authenticated before use:
+
+  gh auth login
+
+You can verify authentication with:
+
+  gh auth status
+EOF
+}
+
+error() {
+    echo "Error: $*" >&2
+}
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+check_dependencies() {
+    local missing=()
+
+    command_exists gh || missing+=("gh")
+    command_exists jq || missing+=("jq")
+    command_exists xclip || missing+=("xclip")
+
+    if [ "${#missing[@]}" -gt 0 ]; then
+        error "Required command(s) not found: ${missing[*]}"
+        echo >&2
+        echo "Install them with:" >&2
+        echo "  sudo apt install ${missing[*]}" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+check_gh_auth() {
+    if ! gh auth status >/dev/null 2>&1; then
+        error "GitHub CLI is not authenticated."
+        echo >&2
+        echo "Run:" >&2
+        echo "  gh auth login" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# Convert command-line arguments into a normalized array of issue numbers.
+#
+# Supports:
+#   123
+#   123,127
+#   123 127,142
+#   #123
+#   #123,#127
+parse_issues() {
+    PARSED_ISSUES=()
+
+    local arg issue
+
+    for arg in "$@"; do
+        # Convert commas to spaces.
+        arg="${arg//,/ }"
+
+        # Word splitting is intentional here so that a single argument
+        # such as "123,127,142" becomes three issue numbers.
+        for issue in $arg; do
+            # Remove an optional leading '#'.
+            issue="${issue#\#}"
+
+            # Validate the issue number.
+            if [[ ! "$issue" =~ ^[0-9]+$ ]]; then
+                error "Invalid issue number: '$issue'"
+                return 1
+            fi
+
+            # Reject zero.
+            if [ "$issue" -eq 0 ]; then
+                error "Invalid issue number: '$issue'"
+                return 1
+            fi
+
+            PARSED_ISSUES+=("$issue")
+        done
+    done
+
+    if [ "${#PARSED_ISSUES[@]}" -eq 0 ]; then
+        error "No issue numbers were specified."
+        return 1
+    fi
+
+    return 0
+}
+
+get_issue() {
+    local issue="$1"
+
+    gh issue view "$issue" \
+        --json number,title,body,state,labels,url
+}
+
+format_issue() {
+    local json="$1"
+
+    jq -r '
+        "## Issue #\(.number): \(.title)\n",
+        "**State:** \(.state)",
+        (if (.labels | length) > 0
+            then "**Labels:** " + ([.labels[].name] | join(", "))
+            else "**Labels:** None"
+        end),
+        "",
+        .body,
+        "",
+        "**GitHub:** \(.url)"
+    ' <<< "$json"
+}
+
+main() {
+    # Handle help before dependency checks.
+    case "${1:-}" in
+        -h|--help)
+            usage
+            return 0
+            ;;
+    esac
+
+    if [ "$#" -eq 0 ]; then
+        usage >&2
+        return 1
+    fi
+
+    check_dependencies || return 1
+    check_gh_auth || return 1
+    parse_issues "$@" || return 1
+
+    local output=""
+    local issue
+    local json
+    local formatted
+    local count=0
+
+    for issue in "${PARSED_ISSUES[@]}"; do
+        echo "Retrieving issue #$issue..." >&2
+
+        if ! json="$(get_issue "$issue")"; then
+            error "Unable to retrieve issue #$issue."
+            return 1
+        fi
+
+        if ! formatted="$(format_issue "$json")"; then
+            error "Unable to format issue #$issue."
+            return 1
+        fi
+
+        if [ -n "$output" ]; then
+            output+=$'\n---\n\n'
+        fi
+
+        output+="$formatted"
+        count=$((count + 1))
+    done
+
+    # Copy only after every issue has been successfully retrieved.
+    if ! printf '%s\n' "$output" | xclip -selection clipboard; then
+        error "Unable to copy output to the clipboard."
+        return 1
+    fi
+
+    echo "Copied $count issue(s) to the clipboard."
+}
+
+main "$@"
