@@ -1,3 +1,53 @@
+#### I would actually use a three-stage process
+
+For your application, I'd do this:
+
+**Audit #1 — Fresh conversation**
+
+Give it:
+
+1. The complete repository.
+2. Your security-audit prompt.
+3. Minimal architectural context that is necessary to understand the application.
+
+Ask it to produce the complete audit and issue files.
+
+**Audit #2 — Completely fresh conversation**
+
+Give another LLM conversation:
+
+1. The same source code.
+2. The same audit prompt.
+3. **Do not give it Audit #1.**
+4. Ask for an independent audit.
+
+Ideally use a different model as well, if available. Different models have different blind spots.
+
+Then compare the results.
+
+**Audit #3 — Adversarial synthesis**
+
+This is where the previous audits become useful.
+
+Give the LLM:
+
+- the source code;
+- Audit #1;
+- Audit #2;
+- the issue lists from both.
+
+Then tell it:
+
+> Treat both audits as potentially wrong. Re-examine the source code yourself. Determine which findings are valid, which are false positives, which are duplicates, and which important vulnerabilities both auditors missed.
+
+That third pass is much more valuable than simply saying "audit this again."
+
+
+
+---
+
+
+
 You are acting as a principal software security engineer and senior code reviewer.
 
 Your task is to perform a comprehensive security, correctness, and reliability audit of this application.

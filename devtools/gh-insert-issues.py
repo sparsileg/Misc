@@ -234,7 +234,8 @@ def create_issue(repo, mdfile, project_id=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("directory")
+    parser.add_argument("directory",
+                        help="Markdown file, or directory of .md files")
     parser.add_argument("--repo", required=True,
                         help="owner/repo")
     parser.add_argument("--project-number", type=int,
@@ -253,7 +254,12 @@ def main():
             args.project_number
         )
 
-    files = sorted(pathlib.Path(args.directory).glob("*.md"))
+    target = pathlib.Path(args.directory)
+
+    if target.is_file():
+        files = [target]
+    else:
+        files = sorted(target.glob("*.md"))
 
     for md in files:
         create_issue(args.repo, md, project_id)
