@@ -55,7 +55,12 @@ SIZE_RE  = re.compile(r"^Size:\s*(.+)$", re.MULTILINE)
 #
 # Usage:
 #
-#   Import issues into a repository:
+#   Import issues into the repository of the current directory
+#   (detected via 'gh repo view'):
+#
+#       python3 gh-issue-insert.py issues
+#
+#   Import issues into a specific repository (overrides auto-detection):
 #
 #       python3 gh-issue-insert.py issues \
 #           --repo OWNER/REPOSITORY
@@ -63,14 +68,12 @@ SIZE_RE  = re.compile(r"^Size:\s*(.+)$", re.MULTILINE)
 #   Import issues and add them to a GitHub Project:
 #
 #       python3 gh-issue-insert.py issues \
-#           --repo OWNER/REPOSITORY \
 #           --project-owner OWNER \
 #           --project-number PROJECT_NUMBER
 #
 # Example:
 #
 #       python3 gh-issue-insert.py issues \
-#           --repo sparsileg/astryx \
 #           --project-owner sparsileg \
 #           --project-number 4
 #
@@ -99,6 +102,16 @@ SIZE_RE  = re.compile(r"^Size:\s*(.+)$", re.MULTILINE)
 #   - Re-running the script will create duplicate issues unless duplicate
 #     detection is added.
 #
+
+def detect_repo():
+    try:
+        return run([
+            "gh", "repo", "view",
+            "--json", "nameWithOwner",
+            "--jq", ".nameWithOwner"
+        ])
+    except subprocess.CalledProcessError:
+        return None
 
 def ensure_label(repo, label):
     existing = subprocess.run(
@@ -200,7 +213,9 @@ def create_issue(repo, mdfile, project_id=None):
     for label in labels:
         ensure_label(repo, label)
 
-    body = text[title_match.end():].lstrip()
+    # Keep the title heading in the body too (not just as the issue title),
+    # so the body can be copied on its own and still carry its context.
+    body = text[title_match.start():].lstrip()
 
     with tempfile.NamedTemporaryFile(
         mode="w",
@@ -236,13 +251,28 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("directory",
                         help="Markdown file, or directory of .md files")
-    parser.add_argument("--repo", required=True,
-                        help="owner/repo")
+    parser.add_argument("--repo",
+                        help="owner/repo (defaults to the repo in the "
+                             "current directory, as detected by 'gh repo view')")
     parser.add_argument("--project-number", type=int,
                         help="GitHub Project number")
     parser.add_argument("--project-owner",
                         help="Project owner (user or org)")
     args = parser.parse_args()
+
+    if args.repo:
+        repo = args.repo
+    else:
+        repo = detect_repo()
+        if not repo:
+            parser.error(
+                "--repo not specified and could not be detected from the "
+                "current directory (run inside a git repo with a GitHub "
+                "remote, or pass --repo OWNER/REPOSITORY)"
+            )
+        print(f"Using repository: {repo}")
+
+    args.repo = repo
 
     project_id = None
 
