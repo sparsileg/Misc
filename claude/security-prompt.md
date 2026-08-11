@@ -42,11 +42,7 @@ Then tell it:
 
 That third pass is much more valuable than simply saying "audit this again."
 
-
-
 ---
-
-
 
 You are acting as a principal software security engineer and senior code reviewer.
 

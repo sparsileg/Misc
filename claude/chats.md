@@ -7,23 +7,32 @@
 - Park shared context in Projects
 - Control output length
 
+## Session beginning
+
+Hi - I'm Stan. Attached is the handoff doc from the previous conversation.
+For this conversation, respond like a caveman. No intro. No praise. No filler. 
+Short sentences. Only essential words. Skip articles when possible. Give
+an answer, not an explanation unless asked. Tell me when I've sent
+you 15 messages and then again when I've sent you 20 messages.
+
+## Session ending
+
+Summarize this entire conversation into a tight context block for a new 
+chat. Include our goal, current status, key decisions, what to avoid, and 
+the very next step in a short, clear structure so the next AI can continue 
+immediately and efficiently. Deliver it as fenced markdown text so I can 
+easily copy and paste it. Thank you!
+
 ## Session beginning and ending
 
-- Send: Respond like a caveman. No intro. No praise. No filler. Short
-  sentences. Only essential words. Skip articles when possible. Give
-  an answer, not an explanation unless asked. Tell me when I've sent
-  you 15 messages and then again when I've sent you 20 messages.
+- Send: Copy **Session beginning** paragraphs into conversation
 - Send: Respond with no intro. No praise. No filler. Short
   sentences. Only essential words.  Give an answer, not an explanation 
   unless asked. Tell me when I've sent you 15 messages and then again 
   when I've sent you 20 messages.
 - **Message 10–15** → send: Give me a concise recap with decisions
   and open items.
-- **Message 15–20*** → send: Summarize this entire conversation
-  into a tight context block for a new chat.  Include our goal,
-  current status, key decisions, what to avoid, and the very next step
-  in a short, clear structure so the next AI can continue immediately
-  and efficiently. Deliver it as  fenced markdown text so I can easily copy and paste it. Thank you! 
+- **Message 15–20** → send: **Session Ending**
 - Then paste that block into a new thread as your first message.
 
 ## Get ready for next chat
