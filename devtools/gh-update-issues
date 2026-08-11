@@ -8,24 +8,30 @@
 # are preserved.
 #
 # Usage:
-#   ./update-scriptum-issues.sh /path/to/issues-folder
+#   ./gh-update-issues /path/to/issues-folder
+#   ./gh-update-issues /path/to/single-issue-file.md
+#
+# If the path is a directory, every issue-*.md file inside it is applied.
+# If the path is a single file, only that file is applied. Either way the
+# filename must still be issue-NN-....md — that's how the script knows
+# which issue number to target.
 #
 # Options:
 #   --auto        Apply all updates without pausing for confirmation
 #                  (default: pauses before each issue, y/n/s/q)
 #   --dry-run     Show what would be sent, apply nothing
-#   --repo OWNER/REPO   Explicit repo (default: relies on gh's repo
-#                  auto-detection from the current git remote)
+#   --repo OWNER/REPO   Explicit repo (default: detected via
+#                  'gh repo view' from the current directory's git remote)
 #
 # Requires: gh CLI installed and authenticated (`gh auth status`),
-# and to be run from inside the scriptum repo (or pass --repo).
+# and to be run from inside the target repo (or pass --repo).
 
 set -euo pipefail
 
-ISSUES_DIR="${1:-}"
+ISSUES_PATH="${1:-}"
 AUTO=false
 DRY_RUN=false
-REPO_FLAG=()
+REPO=""
 
 shift || true
 while [[ $# -gt 0 ]]; do
@@ -34,7 +40,7 @@ while [[ $# -gt 0 ]]; do
         --dry-run) DRY_RUN=true ;;
         --repo)
             shift
-            REPO_FLAG=(--repo "$1")
+            REPO="$1"
             ;;
         *)
             echo "Unknown option: $1" >&2
@@ -44,8 +50,8 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-if [[ -z "$ISSUES_DIR" || ! -d "$ISSUES_DIR" ]]; then
-    echo "Usage: $0 /path/to/issues-folder [--auto] [--dry-run] [--repo OWNER/REPO]" >&2
+if [[ -z "$ISSUES_PATH" || ! -e "$ISSUES_PATH" ]]; then
+    echo "Usage: $0 /path/to/issues-folder-or-file [--auto] [--dry-run] [--repo OWNER/REPO]" >&2
     exit 1
 fi
 
@@ -59,20 +65,34 @@ if ! gh auth status >/dev/null 2>&1; then
     exit 1
 fi
 
-shopt -s nullglob
-FILES=("$ISSUES_DIR"/issue-*.md)
-shopt -u nullglob
+if [[ -z "$REPO" ]]; then
+    REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null || true)
+    if [[ -z "$REPO" ]]; then
+        echo "Error: --repo not specified and could not be detected from the current directory (run inside a git repo with a GitHub remote, or pass --repo OWNER/REPOSITORY)." >&2
+        exit 1
+    fi
+    echo "Using repository: $REPO"
+fi
+REPO_FLAG=(--repo "$REPO")
 
-if [[ ${#FILES[@]} -eq 0 ]]; then
-    echo "No issue-*.md files found in $ISSUES_DIR" >&2
-    exit 1
+if [[ -f "$ISSUES_PATH" ]]; then
+    FILES=("$ISSUES_PATH")
+else
+    shopt -s nullglob
+    FILES=("$ISSUES_PATH"/issue-*.md)
+    shopt -u nullglob
+
+    if [[ ${#FILES[@]} -eq 0 ]]; then
+        echo "No issue-*.md files found in $ISSUES_PATH" >&2
+        exit 1
+    fi
 fi
 
 # Sort numerically by the issue number embedded in the filename
 IFS=$'\n' SORTED=($(printf '%s\n' "${FILES[@]}" | sort -t- -k2 -n))
 unset IFS
 
-echo "Found ${#SORTED[@]} issue file(s) in $ISSUES_DIR"
+echo "Found ${#SORTED[@]} issue file(s) in $ISSUES_PATH"
 echo
 
 APPLIED=0
